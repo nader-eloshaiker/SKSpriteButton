@@ -60,13 +60,11 @@ button.setToggledOnState(true)
 button.addEventListener(SKSpriteButtonEventListener(handler: self.showTab, forEvent: .touchesToggledOn))
 ```
 
-### EventHandler
-
-This is a reference to a method call, eg. `self.fireBigFlippingGun` or `character.jumpUp`
+*Note: EventHandler is a reference to a method call passed to a button, eg. `self.fireBigFlippingGun` or `character.jumpUp`*
 
 ### Creating an Event Handler
 
-Event handlers will pass in the touches, event and the button itself to the method associated with the specific event.
+Event handler method signature will require touches, event and the button itself to the method associated with the specific event.
 
 ```swift
 func showTab(touches: Set<UITouch>, event: UIEvent?, target: SKSpriteButton) {
@@ -94,7 +92,7 @@ toggleGroup.addButton(button1)
 toggleGroup.addButton(button2)
 ```
 
-__Note: Ensure buttons are in their correct toggle state when adding them to the group by using `setToggledOnState(Bool)`__
+*Note: Ensure buttons are in their correct toggle state when adding them to the group by using `setToggledOnState(Bool)`*
 
 ## Move Types
 
