@@ -15,7 +15,7 @@ import SpriteKit
 ///
 /// User should expect similar ergonomics when using `UIButton`.
 public class SKSpriteButton: SKSpriteNode {
-    
+
     /// Button states indicating the current state of the button. Button can only have one state at a time
     ///
     /// - __normal__: button is not tapped by user or toggledOff in toggle mode
@@ -58,7 +58,7 @@ public class SKSpriteButton: SKSpriteNode {
     /// invoke the touchesEnded event listener but rather the touchesToggleOn/Off listener
     public var isToggleMode: Bool = false
 
-    /// isToogleMode must be set to true for this method to take effect, otherwise ignored
+    /// isToggleMode must be set to true for this method to take effect, otherwise ignored
     public func setToggledOnState(_ toggledOn: Bool) {
         // don't do anything if not it toggleMode and the new state matches the current state
         guard toggledOn != (state == .toggledOn) && isToggleMode else {
@@ -96,25 +96,28 @@ public class SKSpriteButton: SKSpriteNode {
     /// The `SKSpriteButton.MoveType` of this button.
     /// Default to `.alwaysHeld`.
     public var moveType: MoveType = .alwaysHeld
-    
+
 
     /// Set the new texture and maintain a copy of it for the current state
     override public var texture: SKTexture? {
         didSet {
+            isUserInteractionEnabled = true
             // Cache new state texture
             stateTextures[state] = texture
         }
     }
-    
+
     /// Set the new color and maintain a copy of it for the current state
     override public var color: UIColor {
         didSet {
+            isUserInteractionEnabled = true
             // Cache new state color
             stateColors[state] = color
         }
     }
 
     public func setColor(_ stateColor: UIColor, forState stateType: StateType) {
+        isUserInteractionEnabled = true
         stateColors[stateType] = stateColor
 
         if self.state == stateType {
@@ -123,6 +126,7 @@ public class SKSpriteButton: SKSpriteNode {
     }
 
     public func setTexture(_ stateTexture:SKTexture, forState stateType: StateType) {
+        isUserInteractionEnabled = true
         stateTextures[stateType] = stateTexture
 
         if self.state == stateType {
@@ -133,7 +137,7 @@ public class SKSpriteButton: SKSpriteNode {
     internal var stateColors: [StateType : UIColor] = [:]
     internal var stateTextures: [StateType : SKTexture] = [:]
     internal var eventListeners: [SKSpriteButtonEventListener] = []
-    
+
 
     /// Add a method handler.
     ///
@@ -142,13 +146,33 @@ public class SKSpriteButton: SKSpriteNode {
         isUserInteractionEnabled = true
         eventListeners.append(listener)
     }
-    
+
     /// Remove a method handler.
     ///
     /// - Parameter handler: a closure conforms to `SKSpriteButtonEvent`.
     public func removeEventListener(_ listener: SKSpriteButtonEventListener) {
         if let index = eventListeners.index(of: listener) {
             eventListeners.remove(at: index)
+        }
+    }
+
+    /// Programatically initiate a touch event
+    ///
+    /// - Parameter: type of event to fire
+    public func fireEvent(_ eventType: SKSpriteButtonEventListener.EventType) {
+        switch eventType {
+        case .touchesBegan:
+            invokeTouchesBeganBehavior(Set(), nil)
+        case .touchesMoved:
+            invokeTouchesMovedBehavior(Set(), nil)
+        case .touchesEnded:
+            invokeTouchesEndedBehavior(Set(), nil)
+        case .touchesCanceled:
+            invokeTouchesCancelledBehavior(Set(), nil)
+        case .touchesToggledOn:
+            invokeToggleOnBehavior(Set(), nil)
+        case .touchesToggledOff:
+            invokeToggleOffBehavior(Set(), nil)
         }
     }
 }
@@ -162,40 +186,40 @@ extension SKSpriteButton {
         }
         touchesDown(touches, event)
     }
-    
+
     public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard state != .disabled else {
             return
         }
         touchesUp(touches, event)
     }
-    
+
     public override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard state != .disabled else {
             return
         }
         touchesCancelled(touches, event)
     }
-    
+
     public override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard state != .disabled else {
             return
         }
         touchesMoved(touches, event)
     }
-    
+
 }
 
 // MARK: - Custom Event Layer
 private extension SKSpriteButton {
-    
+
     func touchesDown(_ touches: Set<UITouch>, _ event: UIEvent?) {
         invokeTouchesBeganBehavior(touches, event)
     }
-    
+
     func touchesMoved(_ touches: Set<UITouch>, _ event: UIEvent?) {
         invokeTouchesMovedBehavior(touches, event)
-        
+
         switch moveType {
         case .releaseFast:
             if state == .tapped {
@@ -215,7 +239,7 @@ private extension SKSpriteButton {
             }
         }
     }
-    
+
     func touchesUp(_ touches: Set<UITouch>, _ event: UIEvent?) {
         if isToggleMode {
             invokeToggleBehavior(touches, event)
@@ -223,15 +247,80 @@ private extension SKSpriteButton {
             invokeTouchesEndedBehavior(touches, event)
         }
     }
-    
+
     func touchesCancelled(_ touches: Set<UITouch>, _ event: UIEvent?) {
         invokeTouchesCancelledBehavior(touches, event)
     }
 }
 
+// MARK: - Event Handling
+private extension  SKSpriteButton {
+    func invokeTouchesBeganBehavior(_ touches: Set<UITouch>, _ event: UIEvent?) {
+        if isToggleMode {
+            previousState = state
+        }
+        triggerTapped()
+        invokeHandler(.touchesBegan, touches, event)
+    }
+
+    func invokeTouchesEndedBehavior(_ touches: Set<UITouch>, _ event: UIEvent?) {
+        triggerNormal()
+        invokeHandler(.touchesEnded, touches, event)
+    }
+
+    func invokeTouchesCancelledBehavior(_ touches: Set<UITouch>, _ event: UIEvent?) {
+        if isToggleMode {
+            if previousState == .toggledOn {
+                triggerToggledOn()
+            } else {
+                triggerToggledOff()
+            }
+        } else {
+            triggerNormal()
+        }
+        invokeHandler(.touchesCanceled, touches, event)
+    }
+
+    func invokeTouchesMovedBehavior(_ touches: Set<UITouch>, _ event: UIEvent?) {
+        invokeHandler(.touchesMoved, touches, event)
+    }
+
+    func invokeToggleBehavior(_ touches: Set<UITouch>, _ event: UIEvent?) {
+        if previousState == .toggledOn {
+            invokeToggleOffBehavior(touches, event)
+        } else {
+            invokeToggleOnBehavior(touches, event)
+        }
+
+        invokeHandler(.touchesEnded, touches, event)
+    }
+
+    func invokeToggleOnBehavior(_ touches: Set<UITouch>, _ event: UIEvent?) {
+        triggerToggledOn()
+        invokeHandler(.touchesToggledOn, touches, event)
+
+        invokeHandler(.touchesEnded, touches, event)
+    }
+
+    func invokeToggleOffBehavior(_ touches: Set<UITouch>, _ event: UIEvent?) {
+        triggerToggledOff()
+        invokeHandler(.touchesToggledOff, touches, event)
+
+        invokeHandler(.touchesEnded, touches, event)
+    }
+
+    private func invokeHandler(_ eventType: SKSpriteButtonEventListener.EventType, _ touches: Set<UITouch>, _ event: UIEvent?) {
+        for listener in eventListeners {
+            if listener.event == eventType {
+                listener.handler(touches, event, self)
+            }
+        }
+    }
+}
+
 // MARK: - Helper Methods
 private extension SKSpriteButton {
-    
+
     func showAppearance(forState stateType: StateType) {
         showColor(forState: stateType)
         showTexture(forState: stateType)
@@ -259,66 +348,16 @@ private extension SKSpriteButton {
         }
     }
 
-    func invokeTouchesBeganBehavior(_ touches: Set<UITouch>, _ event: UIEvent?) {
-        if isToggleMode {
-            previousState = state
-        }
-        triggerTapped()
-        invokeHandler(.touchesBegan, touches, event)
-    }
-    
-    func invokeTouchesEndedBehavior(_ touches: Set<UITouch>, _ event: UIEvent?) {
-        triggerNormal()
-        invokeHandler(.touchesEnded, touches, event)
-    }
-    
-    func invokeTouchesCancelledBehavior(_ touches: Set<UITouch>, _ event: UIEvent?) {
-        if isToggleMode {
-            if previousState == .toggledOn {
-                triggerToggledOn()
-            } else {
-                triggerToggledOff()
-            }
-        } else {
-            triggerNormal()
-        }
-        invokeHandler(.touchesCanceled, touches, event)
-    }
-    
-    func invokeTouchesMovedBehavior(_ touches: Set<UITouch>, _ event: UIEvent?) {
-        invokeHandler(.touchesMoved, touches, event)
-    }
-
-    func invokeToggleBehavior(_ touches: Set<UITouch>, _ event: UIEvent?) {
-        if previousState == .toggledOn {
-            triggerToggledOff()
-            invokeHandler(.touchesToggledOff, touches, event)
-        } else {
-            triggerToggledOn()
-            invokeHandler(.touchesToggledOn, touches, event)
-        }
-
-        invokeHandler(.touchesEnded, touches, event)
-    }
-
-    private func invokeHandler(_ eventType: SKSpriteButtonEventListener.EventType, _ touches: Set<UITouch>, _ event: UIEvent?) {
-        for listener in eventListeners {
-            if listener.event == eventType {
-                listener.handler(touches, event, self)
-            }
-        }
-    }
-
     func triggerNormal() {
         showAppearance(forState: .normal)
         state = .normal
     }
-    
+
     func triggerTapped() {
         showAppearance(forState: .tapped)
         state = .tapped
     }
-    
+
     func triggerToggledOff() {
         showAppearance(forState: .normal)
         state = .normal
@@ -328,7 +367,7 @@ private extension SKSpriteButton {
         showAppearance(forState: .toggledOn)
         state = .toggledOn
     }
-    
+
     func areOutsideOfButtonFrame(_ touches: Set<UITouch>) -> Bool {
         for touch in touches {
             let touchPointInButton = touch.location(in: self)
