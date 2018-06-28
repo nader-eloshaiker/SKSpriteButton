@@ -1,4 +1,3 @@
-
 import SpriteKit
 
 public class SKSpriteKitButtonGroup {
@@ -12,7 +11,7 @@ public class SKSpriteKitButtonGroup {
 
     // Assumes buttons are added in their correct toggle state
     public func addButton(_ button:SKSpriteButton) {
-        button.isToggleMode = true
+        button.setToggleMode(true)
         button.addEventListener(eventListener)
         toggleGroup.insert(button)
     }

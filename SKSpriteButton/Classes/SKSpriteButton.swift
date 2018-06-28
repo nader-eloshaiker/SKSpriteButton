@@ -56,21 +56,25 @@ public class SKSpriteButton: SKSpriteNode {
 
     /// Button becomes a toggle switch that switches between normal and toggledOn. When true, button will not
     /// invoke the touchesEnded event listener but rather the touchesToggleOn/Off listener
-    public var isToggleMode: Bool = false
+    private var toggleModeState: Bool = false
+
+    public func setToggleMode() -> Bool {
+        return self.toggleModeState;
+    }
+
+    public func setToggleMode(_ toggleModeState: Bool) {
+        self.toggleModeState = toggleModeState
+        self.setToggledOnState(false)
+    }
 
     /// isToggleMode must be set to true for this method to take effect, otherwise ignored
     public func setToggledOnState(_ toggledOn: Bool) {
-        // don't do anything if not it toggleMode and the new state matches the current state
-        guard toggledOn != (state == .toggledOn) && isToggleMode else {
-            return
-        }
-
         // Don't call handlers as this is not an action when set manually
         // this is necessary when having a group of buttons to toggle each other
-        if toggledOn {
+        if toggledOn && (state != .toggledOn) {
             showAppearance(forState: .toggledOn)
             state = .toggledOn
-        } else {
+        } else if !toggledOn && (state == .toggledOn) {
             showAppearance(forState: .normal)
             state = .normal
         }
@@ -78,9 +82,9 @@ public class SKSpriteButton: SKSpriteNode {
 
     /// Used to prevent touch recognition
     /// Will show the disabled texture and disabled color
-    public func setDisabledState(_ disabled: Bool) {
+    public func setDisabled(_ disabled: Bool) {
         // don't do anything if the new state matches the current state
-        guard disabled != (state == .disabled) else {
+        guard disabled != isDisabled() else {
             return
         }
 
@@ -91,6 +95,35 @@ public class SKSpriteButton: SKSpriteNode {
             showAppearance(forState: .normal)
             state = .normal
         }
+    }
+
+    /// Added opposite of setDisabled to ease game development logic
+    /// Used to prevent touch recognition
+    /// Will show the enabled texture and enabled color
+    public func setEnabled(_ enabled: Bool) {
+        // don't do anything if the new state matches the current state
+        guard enabled != isEnabled() else {
+            return
+        }
+
+        if enabled {
+            showAppearance(forState: .disabled)
+            state = .disabled
+        } else {
+            showAppearance(forState: .normal)
+            state = .normal
+        }
+    }
+
+    /// Return whether or not the button is in a disabled state
+    public func isDisabled() -> Bool {
+        return state == .disabled
+    }
+
+    /// Added opposite of isDisabled to ease game development logic
+    /// Return whether or not the button is in an enabled state
+    public func isEnabled() -> Bool {
+        return state != .disabled
     }
 
     /// The `SKSpriteButton.MoveType` of this button.
@@ -241,7 +274,7 @@ private extension SKSpriteButton {
     }
 
     func touchesUp(_ touches: Set<UITouch>, _ event: UIEvent?) {
-        if isToggleMode {
+        if toggleModeState {
             invokeToggleBehavior(touches, event)
         } else {
             invokeTouchesEndedBehavior(touches, event)
@@ -256,7 +289,7 @@ private extension SKSpriteButton {
 // MARK: - Event Handling
 private extension  SKSpriteButton {
     func invokeTouchesBeganBehavior(_ touches: Set<UITouch>, _ event: UIEvent?) {
-        if isToggleMode {
+        if toggleModeState {
             previousState = state
         }
         triggerTapped()
@@ -269,7 +302,7 @@ private extension  SKSpriteButton {
     }
 
     func invokeTouchesCancelledBehavior(_ touches: Set<UITouch>, _ event: UIEvent?) {
-        if isToggleMode {
+        if toggleModeState {
             if previousState == .toggledOn {
                 triggerToggledOn()
             } else {
@@ -379,4 +412,3 @@ private extension SKSpriteButton {
     }
 
 }
-
