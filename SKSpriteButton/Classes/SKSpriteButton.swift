@@ -107,11 +107,11 @@ public class SKSpriteButton: SKSpriteNode {
         }
 
         if enabled {
-            showAppearance(forState: .disabled)
-            state = .disabled
-        } else {
             showAppearance(forState: .normal)
             state = .normal
+        } else {
+            showAppearance(forState: .disabled)
+            state = .disabled
         }
     }
 
